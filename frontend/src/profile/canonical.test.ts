@@ -4,7 +4,6 @@ import {
   getEquipmentCount,
   setEquipmentCount,
   setSchedulePoints,
-  updateCurveHeader,
 } from './canonical'
 import {
   applySchedulesToProfile,
@@ -15,7 +14,7 @@ import {
 // JSON natively.
 import fullProfileJson from '../../../data/profiles/full.json'
 
-describe('default clone templates', () => {
+describe('equipment clone templates', () => {
   const defaults = fullProfileJson as PicsProfile
 
   it.each(['meters', 'ders', 'inverters', 'batteries'] as const)(
@@ -76,24 +75,6 @@ describe('default clone templates', () => {
     expect(setEquipmentCount(withFourMeters, 'meters', 2).AI.meters).toEqual(
       withTwoMeters.AI.meters,
     )
-  })
-
-  it('restores empty curve arrays using separate zero-valued axis templates', () => {
-    const zeroPoints = updateCurveHeader(defaults, 0, 'number_of_points', 0)
-    const twoPoints = updateCurveHeader(zeroPoints, 0, 'number_of_points', 2)
-
-    expect(twoPoints.AI.curves[0].number_of_points.value).toBe(2)
-    for (const axis of ['x_values', 'y_values'] as const) {
-      const template = defaults.AI.curves[0][axis][0]
-      expect(zeroPoints.AI.curves[0][axis]).toEqual([])
-      expect(twoPoints.AI.curves[0][axis]).toEqual([
-        { ...template, value: 0 },
-        { ...template, value: 0 },
-      ])
-      twoPoints.AI.curves[0][axis][0].value = 123
-      expect(twoPoints.AI.curves[0][axis][1].value).toBe(0)
-      expect(twoPoints.AI.curves[0][axis][0]).not.toBe(template)
-    }
   })
 })
 

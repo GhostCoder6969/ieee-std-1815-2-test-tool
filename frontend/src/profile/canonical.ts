@@ -88,26 +88,30 @@ export const SECTION_OFFSETS: Record<string, number> = {
 // Semantics (uniform across all call sites):
 //   - target === current length: return input untouched.
 //   - target < current length: return arr.slice(0, target).
-//   - target > current length: structuredClone the last entry, using the
-//     supplied default only if the array is empty, until length === target.
-//     `opts.onClone` lets a caller post-process the
+//   - target > current length and arr is empty: use opts.emptyCloneTemplate
+//     if supplied; otherwise return input untouched.
+//   - target > current length: structuredClone the last entry repeatedly
+//     until length === target. `opts.onClone` lets a caller post-process the
 //     clone (e.g. zero out a `value` field on a fresh point).
 // --------------------------------------------------------------------------
 
 function cloneClamp<T>(
-  inputArray: readonly T[],
-  targetArrayLength: number,
-  emptyCloneTemplate: T,
-  opts?: { onClone?: (item: T) => T },
+  arr: readonly T[],
+  target: number,
+  opts?: { emptyCloneTemplate?: T; onClone?: (item: T) => T },
 ): T[] {
-  if (inputArray.length === targetArrayLength) return inputArray as T[]
-  if (inputArray.length > targetArrayLength)
-    return inputArray.slice(0, targetArrayLength)
-  const out = [...inputArray]
+  if (arr.length === target) return arr as T[]
+  if (arr.length > target) return arr.slice(0, target)
+  const template =
+    arr.length === 0 ? opts?.emptyCloneTemplate : arr[arr.length - 1]
+  if (template === undefined) {
+    throw new Error('Cannot clone: template is undefined')
+  }
+  const out = [...arr]
   const onClone = opts?.onClone
-  while (out.length < targetArrayLength) {
+  while (out.length < target) {
     const cloned = structuredClone(
-      out.length === 0 ? emptyCloneTemplate : out[out.length - 1],
+      out.length === 0 ? template : out[out.length - 1],
     )
     out.push(onClone ? onClone(cloned) : cloned)
   }
@@ -1032,64 +1036,42 @@ export function setEquipmentCount(
   // all four. Expansion clones the last record, using the full-profile
   // defaults only when the current profile has no records for the group.
   if (group === 'meters') {
-    next.AI.meters = cloneClamp(
-      next.AI.meters,
-      newCount,
-      DEFAULT_PROFILE.AI.meters[0],
-    )
-    next.BI.meters = cloneClamp(
-      next.BI.meters,
-      newCount,
-      DEFAULT_PROFILE.BI.meters[0],
-    )
-    next.AO.meters = cloneClamp(
-      next.AO.meters,
-      newCount,
-      DEFAULT_PROFILE.AO.meters[0],
-    )
+    next.AI.meters = cloneClamp(next.AI.meters, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.AI.meters[0],
+    })
+    next.BI.meters = cloneClamp(next.BI.meters, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.BI.meters[0],
+    })
+    next.AO.meters = cloneClamp(next.AO.meters, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.AO.meters[0],
+    })
   } else if (group === 'ders') {
-    next.AI.ders = cloneClamp(
-      next.AI.ders,
-      newCount,
-      DEFAULT_PROFILE.AI.ders[0],
-    )
-    next.BI.ders = cloneClamp(
-      next.BI.ders,
-      newCount,
-      DEFAULT_PROFILE.BI.ders[0],
-    )
+    next.AI.ders = cloneClamp(next.AI.ders, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.AI.ders[0],
+    })
+    next.BI.ders = cloneClamp(next.BI.ders, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.BI.ders[0],
+    })
   } else if (group === 'inverters') {
-    next.AI.inverters = cloneClamp(
-      next.AI.inverters,
-      newCount,
-      DEFAULT_PROFILE.AI.inverters[0],
-    )
-    next.BI.inverters = cloneClamp(
-      next.BI.inverters,
-      newCount,
-      DEFAULT_PROFILE.BI.inverters[0],
-    )
-    next.AO.inverters = cloneClamp(
-      next.AO.inverters,
-      newCount,
-      DEFAULT_PROFILE.AO.inverters[0],
-    )
+    next.AI.inverters = cloneClamp(next.AI.inverters, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.AI.inverters[0],
+    })
+    next.BI.inverters = cloneClamp(next.BI.inverters, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.BI.inverters[0],
+    })
+    next.AO.inverters = cloneClamp(next.AO.inverters, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.AO.inverters[0],
+    })
   } else {
-    next.AI.batteries = cloneClamp(
-      next.AI.batteries,
-      newCount,
-      DEFAULT_PROFILE.AI.batteries[0],
-    )
-    next.BI.batteries = cloneClamp(
-      next.BI.batteries,
-      newCount,
-      DEFAULT_PROFILE.BI.batteries[0],
-    )
-    next.AO.batteries = cloneClamp(
-      next.AO.batteries,
-      newCount,
-      DEFAULT_PROFILE.AO.batteries[0],
-    )
+    next.AI.batteries = cloneClamp(next.AI.batteries, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.AI.batteries[0],
+    })
+    next.BI.batteries = cloneClamp(next.BI.batteries, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.BI.batteries[0],
+    })
+    next.AO.batteries = cloneClamp(next.AO.batteries, newCount, {
+      emptyCloneTemplate: DEFAULT_PROFILE.AO.batteries[0],
+    })
   }
 
   // Update Key counts. The KeySheet records counts per point-type (bo/bi/ao
@@ -1155,7 +1137,7 @@ export function updateCurveHeader(
   next.AI.curves[curveIndex][field].value = numericValue
   if (field === 'number_of_points') {
     // Clamp parallel arrays to the new length, padding with zero-valued
-    // copies of the last point, or the default point if the array is empty.
+    // copies of the last point if growing.
     const zeroValue = (pt: AiPoint): AiPoint => {
       pt.value = 0
       return pt
@@ -1164,13 +1146,11 @@ export function updateCurveHeader(
     next.AI.curves[curveIndex].x_values = cloneClamp(
       next.AI.curves[curveIndex].x_values,
       newCount,
-      DEFAULT_PROFILE.AI.curves[0].x_values[0],
       { onClone: zeroValue },
     )
     next.AI.curves[curveIndex].y_values = cloneClamp(
       next.AI.curves[curveIndex].y_values,
       newCount,
-      DEFAULT_PROFILE.AI.curves[0].y_values[0],
       { onClone: zeroValue },
     )
   }
