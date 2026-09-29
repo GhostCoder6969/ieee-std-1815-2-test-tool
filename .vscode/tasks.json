@@ -4,7 +4,8 @@
     {
       "label": "Start backend",
       "type": "shell",
-      "command": "cargo run -p web_server",
+      "command": "cargo watch -x \"run -p web_server\"",
+      "detail": "Requires cargo-watch (cargo install cargo-watch); restarts the API on saved changes.",
       "hide": true,
       "presentation": {
         "reveal": "always",
