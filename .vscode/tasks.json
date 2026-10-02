@@ -4,8 +4,8 @@
     {
       "label": "Start backend",
       "type": "shell",
-      "command": "cargo watch -x \"run -p web_server\"",
-      "detail": "Requires cargo-watch (cargo install cargo-watch); restarts the API on saved changes.",
+      "command": "bacon run -- -p web_server",
+      "detail": "Requires bacon (cargo install bacon); restarts the API on saved changes.",
       "hide": true,
       "presentation": {
         "reveal": "always",
